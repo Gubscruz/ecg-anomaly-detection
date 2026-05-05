@@ -2,9 +2,12 @@ pandas
 numpy
 scikit-learn
 lightgbm
+imbalanced-learn
 matplotlib
 seaborn
 jupyter
 ipykernel
 wfdb
 tensorflow
+dvc
+PyYAML

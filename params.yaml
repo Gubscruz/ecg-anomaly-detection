@@ -1,0 +1,45 @@
+train:
+  data_dir: data/mit-bih-arrhythmia-database-1.0.0
+  records:
+    - "100"
+    - "109"
+    - "118"
+    - "119"
+    - "200"
+    - "207"
+    - "213"
+  target_symbols:
+    - N
+    - V
+    - L
+    - R
+    - A
+  window_size: 360
+  normalize: true
+  test_size: 0.2
+  random_state: 42
+  apply_smote: true
+  smote_sampling_strategy: auto
+  smote_k_neighbors: 5
+  class_weight: false
+  epochs: 15
+  batch_size: 64
+  optimizer: adam
+  loss: categorical_crossentropy
+  verbose: 1
+  model:
+    architecture: cnn_bilstm
+    conv_filters: 32
+    kernel_size: 5
+    conv_activation: relu
+    pool_size: 2
+    lstm_units: 64
+    dropout: 0.4
+    dense_units: 32
+    dense_activation: relu
+
+outputs:
+  model_path: models/modelo_arritmia_final_v3.h5
+  encoder_path: models/label_encoder.pkl
+  metrics_path: metrics/train.json
+  history_path: metrics/history.csv

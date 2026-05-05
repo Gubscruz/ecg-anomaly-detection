@@ -1,0 +1,77 @@
+schema: '2.0'
+stages:
+  train:
+    cmd: python src/train.py --params params.yaml
+    deps:
+    - path: data/mit-bih-arrhythmia-database-1.0.0
+      hash: md5
+      md5: c49f48619f97c94ae6b3aac575375b8e.dir
+      size: 109337739
+      nfiles: 705
+    - path: src/train.py
+      hash: md5
+      md5: 187cfea51d5e043f59148293f299217a
+      size: 12578
+    params:
+      params.yaml:
+        outputs:
+          model_path: models/modelo_arritmia_final_v3.h5
+          encoder_path: models/label_encoder.pkl
+          metrics_path: metrics/train.json
+          history_path: metrics/history.csv
+        train:
+          data_dir: data/mit-bih-arrhythmia-database-1.0.0
+          records:
+          - '100'
+          - '109'
+          - '118'
+          - '119'
+          - '200'
+          - '207'
+          - '213'
+          target_symbols:
+          - N
+          - V
+          - L
+          - R
+          - A
+          window_size: 360
+          normalize: true
+          test_size: 0.2
+          random_state: 42
+          apply_smote: true
+          smote_sampling_strategy: auto
+          smote_k_neighbors: 5
+          class_weight: false
+          epochs: 15
+          batch_size: 64
+          optimizer: adam
+          loss: categorical_crossentropy
+          verbose: 1
+          model:
+            architecture: cnn_bilstm
+            conv_filters: 32
+            kernel_size: 5
+            conv_activation: relu
+            pool_size: 2
+            lstm_units: 64
+            dropout: 0.4
+            dense_units: 32
+            dense_activation: relu
+    outs:
+    - path: metrics/history.csv
+      hash: md5
+      md5: d53b20a46cac1f7d556e34b94566eb2c
+      size: 1257
+    - path: metrics/train.json
+      hash: md5
+      md5: 9a8350d390d8c0b5f3905dbb89ef9c59
+      size: 1444
+    - path: models/label_encoder.pkl
+      hash: md5
+      md5: f282f339da4f13e7416d2726586c9bab
+      size: 256
+    - path: models/modelo_arritmia_final_v3.h5
+      hash: md5
+      md5: 036379af71d863b6420072fc596954e1
+      size: 701792

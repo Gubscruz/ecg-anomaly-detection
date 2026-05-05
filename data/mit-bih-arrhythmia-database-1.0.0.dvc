@@ -1,0 +1,6 @@
+outs:
+- md5: c49f48619f97c94ae6b3aac575375b8e.dir
+  size: 109337739
+  nfiles: 705
+  hash: md5
+  path: mit-bih-arrhythmia-database-1.0.0

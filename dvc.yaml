@@ -1,0 +1,19 @@
+stages:
+  train:
+    cmd: python src/train.py --params params.yaml
+    deps:
+      - src/train.py
+      - data/mit-bih-arrhythmia-database-1.0.0
+    params:
+      - train
+      - outputs
+    outs:
+      - models/modelo_arritmia_final_v3.h5
+      - models/label_encoder.pkl
+    metrics:
+      - metrics/train.json:
+          cache: false
+    plots:
+      - metrics/history.csv:
+          cache: false
+          x: epoch
