@@ -38,6 +38,54 @@ Formatos aceitos:
 Por padrao o app aplica normalizacao Z-score antes da predicao, igual ao notebook.
 Use `"normalize": false` se os dados ja estiverem normalizados.
 
+## Experimentos com DVC
+
+O projeto esta configurado para versionar o dataset MIT-BIH usado no treino,
+os parametros do experimento, o modelo treinado e as metricas geradas.
+
+```bash
+source ecg-env/bin/activate
+pip install -r requirements.txt
+```
+
+Arquivos principais:
+
+- `params.yaml`: parametros editaveis do treino.
+- `dvc.yaml`: pipeline DVC que executa `src/train.py`.
+- `data/mit-bih-arrhythmia-database-1.0.0.dvc`: hash/versionamento do dataset.
+- `models/modelo_arritmia_final_v3.h5`: modelo gerado pelo pipeline.
+- `models/label_encoder.pkl`: encoder das classes gerado pelo pipeline.
+- `metrics/train.json`: metricas finais.
+- `metrics/history.csv`: historico de treino para plots do DVC.
+
+Para executar e registrar um run:
+
+```bash
+dvc exp run
+```
+
+Para comparar runs e parametros:
+
+```bash
+dvc exp show
+dvc exp diff
+dvc metrics show
+```
+
+Para rodar o pipeline sem criar um experimento separado:
+
+```bash
+dvc repro
+```
+
+Se quiser compartilhar os dados/modelos via remote, configure um destino e envie
+o cache:
+
+```bash
+dvc remote add -d storage <remote-url>
+dvc push
+```
+
 ## Structure
 
 The template generates a project with the following layout:

@@ -1,5 +1,9 @@
 # Python
-/data
+data/**
+!data/
+!data/.gitkeep
+!data/*.dvc
+!data/.gitignore
 
 __pycache__/
 *.pyc
@@ -47,6 +51,9 @@ Thumbs.db
 *.toml
 *.yaml
 *.yml
+!dvc.yaml
+!dvc.lock
+!params.yaml
 
 # Cache
 .cache/
