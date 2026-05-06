@@ -37,7 +37,16 @@ models/*.h5
 # Logs and results
 *.log
 results/
+dvc_plots/
 !.gitkeep
+
+# Experiment tracking
+mlruns/
+mlartifacts/
+mlflow.db
+
+# Local credentials
+client_secret_*.json
 
 # OS files
 .DS_Store

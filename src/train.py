@@ -5,6 +5,7 @@ import csv
 import json
 import os
 import pickle
+import re
 from collections import Counter
 from pathlib import Path
 from typing import Any
@@ -34,6 +35,9 @@ from tensorflow.keras.layers import (
 )
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.utils import to_categorical
+
+
+SAFE_KEY_RE = re.compile(r"[^A-Za-z0-9_.-]+")
 
 
 def parse_args() -> argparse.Namespace:
@@ -230,6 +234,69 @@ def to_builtin(value: Any) -> Any:
     return value
 
 
+def as_bool(value: Any, default: bool = False) -> bool:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "y", "sim"}
+    return bool(value)
+
+
+def safe_key(value: str) -> str:
+    return SAFE_KEY_RE.sub("_", value).strip("_")
+
+
+def flatten_params(value: Any, prefix: str = "") -> dict[str, Any]:
+    if isinstance(value, dict):
+        flattened: dict[str, Any] = {}
+        for key, item in value.items():
+            child_key = safe_key(str(key))
+            next_prefix = f"{prefix}.{child_key}" if prefix else child_key
+            flattened.update(flatten_params(item, next_prefix))
+        return flattened
+
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return {prefix: value if value is not None else "null"}
+
+    return {prefix: json.dumps(to_builtin(value), sort_keys=True)}
+
+
+def flatten_metrics(value: Any, prefix: str = "") -> dict[str, float]:
+    if isinstance(value, dict):
+        flattened: dict[str, float] = {}
+        for key, item in value.items():
+            child_key = safe_key(str(key))
+            next_prefix = f"{prefix}_{child_key}" if prefix else child_key
+            flattened.update(flatten_metrics(item, next_prefix))
+        return flattened
+
+    if isinstance(value, (int, float, np.integer, np.floating)):
+        return {prefix: float(value)}
+
+    return {}
+
+
+def dvc_marker_for_path(path: Path) -> Path:
+    return path.with_name(f"{path.name}.dvc")
+
+
+def read_dvc_md5(marker_path: Path) -> str | None:
+    if not marker_path.exists():
+        return None
+
+    with marker_path.open("r", encoding="utf-8") as stream:
+        metadata = yaml.safe_load(stream) or {}
+
+    outs = metadata.get("outs") or []
+    if not outs:
+        return None
+
+    md5 = outs[0].get("md5")
+    return str(md5) if md5 else None
+
+
 def write_metrics(
     metrics_path: Path,
     y_true: np.ndarray,
@@ -238,7 +305,7 @@ def write_metrics(
     class_distribution: Counter[str],
     train_size: int,
     test_size: int,
-) -> None:
+) -> dict[str, Any]:
     report = classification_report(
         y_true,
         y_pred,
@@ -280,6 +347,108 @@ def write_metrics(
     with metrics_path.open("w", encoding="utf-8") as stream:
         json.dump(to_builtin(metrics), stream, indent=2, sort_keys=True)
         stream.write("\n")
+
+    return metrics
+
+
+def configure_mlflow(tracking_params: dict[str, Any]):
+    import mlflow
+
+    tracking_uri = str(
+        tracking_params.get("tracking_uri") or os.getenv("MLFLOW_TRACKING_URI") or ""
+    ).strip()
+    dagshub_params = tracking_params.get("dagshub") or {}
+    dagshub_url = str(dagshub_params.get("repo_url") or "").strip()
+    dagshub_owner = str(dagshub_params.get("repo_owner") or "").strip()
+    dagshub_repo = str(dagshub_params.get("repo_name") or "").strip()
+
+    if tracking_uri:
+        mlflow.set_tracking_uri(tracking_uri)
+    elif dagshub_url or (dagshub_owner and dagshub_repo):
+        import dagshub
+
+        init_kwargs = {
+            "root": str(PROJECT_ROOT),
+            "mlflow": True,
+        }
+        if dagshub_url:
+            init_kwargs["url"] = dagshub_url
+        else:
+            init_kwargs["repo_owner"] = dagshub_owner
+            init_kwargs["repo_name"] = dagshub_repo
+        dagshub.init(**init_kwargs)
+
+    experiment_name = str(
+        tracking_params.get("experiment_name") or "ecg-anomaly-detection"
+    ).strip()
+    mlflow.set_experiment(experiment_name)
+    return mlflow
+
+
+def log_to_mlflow(
+    params: dict[str, Any],
+    params_path: Path,
+    data_dir: Path,
+    model: tf.keras.Model,
+    history: tf.keras.callbacks.History,
+    metrics: dict[str, Any],
+    output_paths: dict[str, Path],
+) -> None:
+    tracking_params = (params.get("tracking") or {}).get("mlflow") or {}
+    if not as_bool(tracking_params.get("enabled"), default=False):
+        return
+
+    try:
+        mlflow = configure_mlflow(tracking_params)
+        run_name = tracking_params.get("run_name") or None
+        nested = mlflow.active_run() is not None
+        dataset_marker = dvc_marker_for_path(data_dir)
+        dataset_md5 = read_dvc_md5(dataset_marker)
+
+        with mlflow.start_run(run_name=run_name, nested=nested):
+            mlflow.log_params(flatten_params(params))
+            mlflow.set_tags(
+                {
+                    "dvc_stage": "train",
+                    "dataset_path": str(data_dir.relative_to(PROJECT_ROOT)),
+                    "dataset_dvc_md5": dataset_md5 or "unknown",
+                }
+            )
+
+            for name, values in history.history.items():
+                metric_name = f"epoch_{safe_key(name)}"
+                for step, value in enumerate(values, start=1):
+                    mlflow.log_metric(metric_name, float(value), step=step)
+
+            for name, value in flatten_metrics(metrics).items():
+                mlflow.log_metric(name, value)
+
+            if as_bool(tracking_params.get("log_artifacts"), default=True):
+                artifact_paths = {
+                    "params": params_path,
+                    "dvc": PROJECT_ROOT / "dvc.yaml",
+                    "dvc-lock": PROJECT_ROOT / "dvc.lock",
+                    "dataset-dvc": dataset_marker,
+                    **output_paths,
+                }
+
+                for artifact_name, artifact_path in artifact_paths.items():
+                    if artifact_path.exists():
+                        mlflow.log_artifact(
+                            str(artifact_path),
+                            artifact_path=safe_key(artifact_name),
+                        )
+
+            if as_bool(tracking_params.get("log_keras_model"), default=False):
+                mlflow.keras.log_model(model, artifact_path="keras-model")
+
+        tracking_uri = mlflow.get_tracking_uri()
+        print(f"Logged MLflow run to {tracking_uri}")
+
+    except Exception as exc:
+        if as_bool(tracking_params.get("fail_on_error"), default=False):
+            raise
+        print(f"WARNING: MLflow logging failed: {exc}")
 
 
 def main() -> None:
@@ -353,7 +522,7 @@ def main() -> None:
     y_pred_indices = np.argmax(y_pred_probabilities, axis=1)
 
     write_history_csv(history, history_path)
-    write_metrics(
+    metrics = write_metrics(
         metrics_path=metrics_path,
         y_true=y_test_indices,
         y_pred=y_pred_indices,
@@ -361,6 +530,21 @@ def main() -> None:
         class_distribution=Counter(y),
         train_size=len(x_train),
         test_size=len(x_test),
+    )
+
+    log_to_mlflow(
+        params=params,
+        params_path=params_path,
+        data_dir=data_dir,
+        model=model,
+        history=history,
+        metrics=metrics,
+        output_paths={
+            "model": model_path,
+            "label-encoder": encoder_path,
+            "metrics": metrics_path,
+            "history": history_path,
+        },
     )
 
     print(f"Saved model to {model_path.relative_to(PROJECT_ROOT)}")

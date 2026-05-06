@@ -11,3 +11,5 @@ wfdb
 tensorflow
 dvc
 PyYAML
+mlflow
+dagshub

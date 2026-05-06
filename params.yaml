@@ -43,3 +43,17 @@ outputs:
   encoder_path: models/label_encoder.pkl
   metrics_path: metrics/train.json
   history_path: metrics/history.csv
+
+tracking:
+  mlflow:
+    enabled: true
+    experiment_name: ecg-anomaly-detection
+    run_name: ecg-train
+    tracking_uri: ""
+    log_artifacts: true
+    log_keras_model: false
+    fail_on_error: false
+    dagshub:
+      repo_url: ""
+      repo_owner: ""
+      repo_name: ""

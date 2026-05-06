@@ -8,3 +8,7 @@ __pycache__/
 *.pyc
 ecg-env/
 .cache/
+mlruns/
+mlartifacts/
+mlflow.db
+dvc_plots/

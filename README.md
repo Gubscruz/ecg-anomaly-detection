@@ -78,6 +78,57 @@ Para rodar o pipeline sem criar um experimento separado:
 dvc repro
 ```
 
+## Dashboard com DagsHub + MLflow
+
+O treino tambem envia parametros, metricas, historico de epocas e artefatos
+para MLflow quando `tracking.mlflow.enabled` esta ativo em `params.yaml`.
+Para usar o dashboard compartilhado do DagsHub:
+
+1. Crie ou importe este repositorio em `https://dagshub.com`.
+2. No DagsHub, gere um token em **User Settings > Tokens**.
+3. Configure as credenciais no terminal, sem commitar secrets:
+
+```bash
+export MLFLOW_TRACKING_URI=https://dagshub.com/<owner>/<repo>.mlflow
+export MLFLOW_TRACKING_USERNAME=<dagshub-username>
+export MLFLOW_TRACKING_PASSWORD=<dagshub-token>
+```
+
+4. Rode o treino normalmente pelo DVC:
+
+```bash
+dvc exp run
+```
+
+Depois abra o dashboard em:
+
+```text
+https://dagshub.com/<owner>/<repo>/experiments
+```
+
+Cada run registra:
+
+- parametros de `params.yaml`;
+- metricas finais de `metrics/train.json`;
+- curvas de treino/validacao de `metrics/history.csv`;
+- modelo `.h5`, label encoder, `dvc.yaml`, `dvc.lock` e arquivo `.dvc` do dataset.
+
+Tambem e possivel configurar o repositorio direto em `params.yaml`:
+
+```yaml
+tracking:
+  mlflow:
+    dagshub:
+      repo_owner: "<owner>"
+      repo_name: "<repo>"
+```
+
+Se quiser rodar sem logging no MLflow:
+
+```bash
+dvc exp run -S tracking.mlflow.enabled=false
+```
+
 Se quiser compartilhar os dados/modelos via remote, configure um destino e envie
 o cache:
 
