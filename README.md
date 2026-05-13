@@ -38,6 +38,28 @@ Formatos aceitos:
 Por padrao o app aplica normalizacao Z-score antes da predicao, igual ao notebook.
 Use `"normalize": false` se os dados ja estiverem normalizados.
 
+## Cliente Streamlit
+
+O arquivo `streamlit_app.py` fornece uma interface simples para enviar
+requisicoes para a API existente.
+
+Em um terminal, rode a API:
+
+```bash
+source ecg-env/bin/activate
+python app.py --port 8000
+```
+
+Em outro terminal, rode o cliente:
+
+```bash
+source ecg-env/bin/activate
+streamlit run streamlit_app.py
+```
+
+No app Streamlit, use a URL base `http://127.0.0.1:8000`. Se a API estiver em
+outra porta, altere esse campo na barra lateral.
+
 ## Experimentos com DVC
 
 O projeto esta configurado para versionar o dataset MIT-BIH usado no treino,

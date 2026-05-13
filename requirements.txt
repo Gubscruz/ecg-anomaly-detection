@@ -13,3 +13,5 @@ dvc
 PyYAML
 mlflow
 dagshub
+requests
+streamlit
