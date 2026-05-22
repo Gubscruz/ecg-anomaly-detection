@@ -43,6 +43,11 @@ Use `"normalize": false` se os dados ja estiverem normalizados.
 O arquivo `streamlit_app.py` fornece uma interface simples para enviar
 requisicoes para a API existente.
 
+Agora o cliente tambem tem um modo de simulacao em tempo real. Ele carrega um
+registro local do MIT-BIH, ingere os sinais em pequenos blocos como se viessem
+de um sensor e envia cada janela de 360 pontos para a API assim que fica
+completa.
+
 Em um terminal, rode a API:
 
 ```bash
@@ -59,6 +64,9 @@ streamlit run streamlit_app.py
 
 No app Streamlit, use a URL base `http://127.0.0.1:8000`. Se a API estiver em
 outra porta, altere esse campo na barra lateral.
+
+Na tela principal, escolha `Live sensor simulation` para ver a classificacao
+atualizar enquanto os novos pontos entram no buffer.
 
 ## Experimentos com DVC
 
@@ -183,7 +191,7 @@ ecg/
 
 The configuration file allows you to set:
 
-* `directory_name` — name of the generated project folder
+- `directory_name` — name of the generated project folder
   (and any additional fields you may add later)
 
 ## Usage
